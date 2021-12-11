@@ -2,18 +2,14 @@ package com.example.webimagedownloader
 
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
-import android.graphics.Color
 import android.os.Bundle
-import android.os.PersistableBundle
+import android.webkit.URLUtil
 import android.widget.Button
 import android.widget.EditText
 import android.widget.ImageView
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
-import androidx.appcompat.widget.AppCompatEditText
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.*
 import java.net.URL
 
 class MainActivity: AppCompatActivity() {
@@ -26,21 +22,32 @@ class MainActivity: AppCompatActivity() {
         val downloadButton: Button = findViewById(R.id.download_button)
 
         downloadButton.setOnClickListener {
-            val job: Job = GlobalScope.launch(Dispatchers.IO) {
-                val bitmap: Bitmap = loadImageFromNetwork(urlField.text.toString())
-                imageView.post { imageView.setImageBitmap(bitmap) }
+            val url = urlField.text.toString()
+            urlField.text.clear()
+
+            if (URLUtil.isValidUrl(url)) {
+                val job: Job = GlobalScope.launch(Dispatchers.IO) {
+                    try {
+                        val bitmap: Bitmap = loadImageFromNetwork(url)
+                        imageView.post { imageView.setImageBitmap(bitmap) }
+                    } catch (e: Exception) {
+                        runOnUiThread {
+                            Toast.makeText(this@MainActivity, "Произошла непредвиденная ошибка при загрузке изображения", Toast.LENGTH_LONG).show()
+                        }
+                    }
+                }
+                job.start()
+            } else {
+                //вернул false что говорит о том, что URL некорректный
+                Toast.makeText(this, "Введен некорректный URL", Toast.LENGTH_LONG).show()
             }
-            job.start()
         }
     }
 
     private fun loadImageFromNetwork(link: String): Bitmap {
         val connection = URL(link).openConnection()
         val inputStream = connection.getInputStream()
-        return try {
-            BitmapFactory.decodeStream(inputStream)
-        } catch (e: Exception) {
-            BitmapFactory.decodeResource(getResources(), R.drawable.notanimage)
-        }
+        val image = BitmapFactory.decodeStream(inputStream)
+        return image
     }
 }
